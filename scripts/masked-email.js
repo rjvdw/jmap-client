@@ -8,18 +8,6 @@ import { FastmailApi } from '../lib/FastmailApi.js'
 
 dotenv.config()
 
-const FIELDS = [
-  'id',
-  'email',
-  'createdBy',
-  'createdAt',
-  'description',
-  'forDomain',
-  'url',
-  'state',
-  'lastMessageAt',
-]
-
 async function main() {
   const fastmail = await FastmailApi.create(process.env.FASTMAIL_API_TOKEN)
 
