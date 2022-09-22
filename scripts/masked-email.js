@@ -69,9 +69,13 @@ async function edit(maskedEmails) {
 
 function editFile(file) {
   return new Promise((resolve, reject) => {
-    const editor = spawn('vim', [file], {
+    const editor = spawn(process.env.EDITOR || 'vim', [file], {
       stdio: 'inherit',
       detached: true,
+    })
+
+    editor.on('error', (error) => {
+      reject(error)
     })
 
     editor.on('close', (code) => {
