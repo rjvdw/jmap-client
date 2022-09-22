@@ -65,7 +65,10 @@ async function updateMaskedEmails(fastmail, toUpdate) {
 }
 
 async function edit(maskedEmails) {
-  const serialized = maskedEmails.map(toString).join('\n\n')
+  const serialized = maskedEmails
+    .map(toString)
+    .map((email, index) => `[${ index + 1 }/${ maskedEmails.length }] ${ email }`)
+    .join('\n\n')
   const tmpDir = await mkdtemp(path.join(os.tmpdir(), 'jmap-client--'))
   const tmpFile = path.join(tmpDir, 'masked-emails.txt')
   await writeFile(tmpFile, serialized)
@@ -147,10 +150,10 @@ function parse(data, maskedEmails) {
   }
 
   for (const line of data.split('\n')) {
-    const headerMatch = line.match(/^(\S+) \(id: (\S+)\)$/)
+    const headerMatch = line.match(/^\S.* \(id: (\S+)\)$/)
     if (headerMatch) {
       add()
-      id = headerMatch[2]
+      id = headerMatch[1]
     }
 
     const match = line.match(/^\s*(\S+):\s*(.*)$/)
