@@ -1,10 +1,13 @@
-import { mkdtemp, readFile, rm, rmdir, writeFile } from 'node:fs/promises'
-import { spawn } from 'node:child_process'
+import { mkdtemp, readFile, rm, writeFile } from 'node:fs/promises'
 import os from 'node:os'
 import path from 'node:path'
 import dotenv from 'dotenv'
 import { JMAP_CORE_URI, MASKED_EMAIL_URI } from '../lib/constants.js'
 import { FastmailApi } from '../lib/FastmailApi.js'
+import { run } from '../lib/process.js'
+import { Git } from '../lib/Git.js'
+
+const FILE_NAME = 'masked-emails.txt'
 
 dotenv.config()
 
@@ -16,10 +19,10 @@ async function main() {
 
   const count = Object.keys(toUpdate).length
   if (count > 0) {
-    console.log(`updating ${ count } masked emails`)
+    console.debug('updating %s masked emails', count)
     await updateMaskedEmails(fastmail, toUpdate)
   } else {
-    console.log('nothing to update')
+    console.debug('nothing to update')
   }
 }
 
@@ -49,7 +52,7 @@ async function updateMaskedEmails(fastmail, toUpdate) {
     ],
   })
 
-  console.log(response.methodResponses[0][1])
+  console.debug(response.methodResponses[0][1])
 }
 
 async function edit(maskedEmails) {
@@ -57,34 +60,55 @@ async function edit(maskedEmails) {
     .map(toString)
     .map((email, index) => `[${ index + 1 }/${ maskedEmails.length }] ${ email }`)
     .join('\n\n')
+
   const tmpDir = await mkdtemp(path.join(os.tmpdir(), 'jmap-client--'))
-  const tmpFile = path.join(tmpDir, 'masked-emails.txt')
+  console.debug('created working dir: "%s"', tmpDir)
+  const tmpFile = path.join(tmpDir, FILE_NAME)
   await writeFile(tmpFile, serialized)
-  await editFile(tmpFile)
+  console.debug('created working file: "%s"', tmpFile)
+
+  const git = Git.create(tmpDir)
+  await git.init()
+  await git.add(FILE_NAME)
+  await git.commit('-m', 'initial commit')
+  console.debug('set up git')
+
+  // console.debug('opening shell')
+  // await openShell(tmpDir)
+  // console.debug('shell closed, reading data')
+  await openEditor(tmpDir, FILE_NAME)
+
   const data = await readFile(tmpFile, { encoding: 'UTF-8' })
-  await rm(tmpFile)
-  await rmdir(tmpDir)
+  console.debug('removing working dir: "%s"', tmpDir)
+  await rm(tmpDir, {
+    force: true,
+    recursive: true,
+  })
   return parse(data, maskedEmails)
 }
 
-function editFile(file) {
-  return new Promise((resolve, reject) => {
-    const editor = spawn(process.env.EDITOR || 'vim', [file], {
-      stdio: 'inherit',
-      detached: true,
-    })
+async function openEditor(cwd, file) {
+  console.info('Waiting for the editor to close...')
+  const [editor, ...editorArgs] = (process.env.EDITOR || 'vim').split(' ')
+  return run(editor, [...editorArgs, file], {
+    cwd,
+    stdio: 'inherit',
+    detached: true,
+  })
+}
 
-    editor.on('error', (error) => {
-      reject(error)
-    })
-
-    editor.on('close', (code) => {
-      if (code === 0) {
-        resolve()
-      } else {
-        reject(code)
-      }
-    })
+async function openShell(cwd) {
+  console.info()
+  console.info('='.repeat(72))
+  console.info('Interactive shell opened at "%s".', cwd)
+  console.info('You can make changes by editing the file %s in your editor of choice.', FILE_NAME)
+  console.info('When you are done with your changes, just close the shell.')
+  console.info('='.repeat(72))
+  console.info()
+  return run(process.env.SHELL || '/bin/sh', [], {
+    cwd,
+    stdio: 'inherit',
+    detached: true,
   })
 }
 
