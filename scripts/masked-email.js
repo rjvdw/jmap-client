@@ -37,7 +37,8 @@ async function getMaskedEmails(fastmail) {
   })
 
   const maskedEmails = [...response.methodResponses[0][1].list]
-  maskedEmails.sort((a, b) => a.email.localeCompare(b.email))
+  // maskedEmails.sort((a, b) => a.email.localeCompare(b.email))
+  maskedEmails.sort((a, b) => a.createdAt.localeCompare(b.createdAt))
   return maskedEmails
 }
 
