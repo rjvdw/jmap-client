@@ -65,14 +65,25 @@ async function edit(maskedEmails) {
   const tmpDir = await mkdtemp(path.join(os.tmpdir(), 'jmap-client--'))
   console.debug('created working dir: "%s"', tmpDir)
   const tmpFile = path.join(tmpDir, FILE_NAME)
+
+  const { GIT_REMOTE } = process.env
+  const git = Git.create(tmpDir)
+  const hasChanges = async () => Boolean((await git.status('--porcelain')).trim())
+
+  if (GIT_REMOTE) {
+    await git.clone(GIT_REMOTE, '.')
+    console.debug('cloned git repository from %s', GIT_REMOTE)
+  } else {
+    await git.init()
+    console.debug('set up git repository')
+  }
+
   await writeFile(tmpFile, serialized)
   console.debug('created working file: "%s"', tmpFile)
-
-  const git = Git.create(tmpDir)
-  await git.init()
-  await git.add(FILE_NAME)
-  await git.commit('-m', 'initial commit')
-  console.debug('set up git')
+  if (!GIT_REMOTE || await hasChanges()) {
+    await git.add(FILE_NAME)
+    await git.commit('-m', 'Sync masked e-mails from Fastmail')
+  }
 
   // console.debug('opening shell')
   // await openShell(tmpDir)
@@ -80,6 +91,16 @@ async function edit(maskedEmails) {
   await openEditor(tmpDir, FILE_NAME)
 
   const data = await readFile(tmpFile, { encoding: 'UTF-8' })
+
+  if (GIT_REMOTE) {
+    const currentBranch = (await git.branch('--show-current')).trim()
+    if (await hasChanges()) {
+      await git.add(FILE_NAME)
+      await git.commit('-m', 'Update masked e-mails')
+    }
+    await git.push('--atomic', 'origin', currentBranch)
+  }
+
   console.debug('removing working dir: "%s"', tmpDir)
   await rm(tmpDir, {
     force: true,
