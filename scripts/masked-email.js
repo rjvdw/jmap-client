@@ -11,19 +11,17 @@ const FILE_NAME = 'masked-emails.txt'
 
 dotenv.config()
 
-async function main() {
-	const fastmail = await FastmailApi.create(process.env.FASTMAIL_API_TOKEN)
+const fastmail = await FastmailApi.create(process.env.FASTMAIL_API_TOKEN)
 
-	const maskedEmails = await getMaskedEmails(fastmail)
-	const toUpdate = await edit(maskedEmails)
+const maskedEmails = await getMaskedEmails(fastmail)
+const toUpdate = await edit(maskedEmails)
 
-	const count = Object.keys(toUpdate).length
-	if (count > 0) {
-		console.debug('updating %s masked emails', count)
-		await updateMaskedEmails(fastmail, toUpdate)
-	} else {
-		console.debug('nothing to update')
-	}
+const count = Object.keys(toUpdate).length
+if (count > 0) {
+	console.debug('updating %s masked emails', count)
+	await updateMaskedEmails(fastmail, toUpdate)
+} else {
+	console.debug('nothing to update')
 }
 
 async function getMaskedEmails(fastmail) {
@@ -227,5 +225,3 @@ function hasChanged(a, b) {
 	}
 	return false
 }
-
-main().catch(console.error)
