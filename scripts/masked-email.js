@@ -14,6 +14,11 @@ dotenv.config()
 const fastmail = await FastmailApi.create(process.env.FASTMAIL_API_TOKEN)
 
 const maskedEmails = await getMaskedEmails(fastmail)
+console.debug(
+	'found %s masked emails (%s)',
+	maskedEmails.length,
+	countStates(maskedEmails),
+)
 const toUpdate = await edit(maskedEmails)
 
 const count = Object.keys(toUpdate).length
@@ -224,4 +229,21 @@ function hasChanged(a, b) {
 		if (a[key] !== b[key]) return true
 	}
 	return false
+}
+
+function countStates(maskedEmails) {
+	const counts = maskedEmails
+		.map((maskedEmail) => maskedEmail.state)
+		.reduce(
+			(counts, state) => ({
+				...counts,
+				[state]: (counts[state] ?? 0) + 1,
+			}),
+			{},
+		)
+
+	return Object.entries(counts)
+		.toSorted(([, a], [, b]) => b - a)
+		.map(([state, count]) => `${state}: ${count}`)
+		.join(', ')
 }
